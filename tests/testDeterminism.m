@@ -1,6 +1,17 @@
 classdef testDeterminism < matlab.unittest.TestCase
     % TESTDETERMINISM Test reproducible and deterministic output across multiple runs.
 
+    methods (TestClassSetup)
+        function setupPaths(testCase)
+            thisDir = fileparts(mfilename('fullpath'));
+            rootDir = fileparts(thisDir);
+            addpath(rootDir);
+            addpath(fullfile(rootDir, 'src', 'compat'));
+            addpath(genpath(fullfile(rootDir, 'src')));
+            addpath(genpath(fullfile(rootDir, 'eval')));
+        end
+    end
+
     methods (Test)
         function testSeededDeterminism(testCase)
             cfg = config();

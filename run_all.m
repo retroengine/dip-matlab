@@ -22,6 +22,8 @@ fprintf('======================================================================\
 % Ensure src, eval, and tests folders are in MATLAB path
 baseDir = fileparts(mfilename('fullpath'));
 if isempty(baseDir), baseDir = pwd; end
+addpath(baseDir);
+addpath(fullfile(baseDir, 'src', 'compat'));
 addpath(genpath(fullfile(baseDir, 'src')));
 addpath(genpath(fullfile(baseDir, 'eval')));
 addpath(fullfile(baseDir, 'tests'));

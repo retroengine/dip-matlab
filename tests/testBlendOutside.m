@@ -1,6 +1,17 @@
 classdef testBlendOutside < matlab.unittest.TestCase
     % TESTBLENDOUTSIDE Test that blendResult preserves bit-identical original pixels outside mask.
 
+    methods (TestClassSetup)
+        function setupPaths(testCase)
+            thisDir = fileparts(mfilename('fullpath'));
+            rootDir = fileparts(thisDir);
+            addpath(rootDir);
+            addpath(fullfile(rootDir, 'src', 'compat'));
+            addpath(genpath(fullfile(rootDir, 'src')));
+            addpath(genpath(fullfile(rootDir, 'eval')));
+        end
+    end
+
     methods (Test)
         function testBitExactPreservation(testCase)
             cfg = config();

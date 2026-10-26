@@ -1,6 +1,17 @@
 classdef testAlphaRecovery < matlab.unittest.TestCase
     % TESTALPHARECOVERY Test accuracy of scalar alpha estimation via edge cancellation.
 
+    methods (TestClassSetup)
+        function setupPaths(testCase)
+            thisDir = fileparts(mfilename('fullpath'));
+            rootDir = fileparts(thisDir);
+            addpath(rootDir);
+            addpath(fullfile(rootDir, 'src', 'compat'));
+            addpath(genpath(fullfile(rootDir, 'src')));
+            addpath(genpath(fullfile(rootDir, 'eval')));
+        end
+    end
+
     methods (Test)
         function testAlphaEstimation(testCase)
             cfg = config();

@@ -1,6 +1,17 @@
 classdef testClassifyPeriodic < matlab.unittest.TestCase
     % TESTCLASSIFYPERIODIC Test autocorrelation classification for periodic vs non-periodic images.
 
+    methods (TestClassSetup)
+        function setupPaths(testCase)
+            thisDir = fileparts(mfilename('fullpath'));
+            rootDir = fileparts(thisDir);
+            addpath(rootDir);
+            addpath(fullfile(rootDir, 'src', 'compat'));
+            addpath(genpath(fullfile(rootDir, 'src')));
+            addpath(genpath(fullfile(rootDir, 'eval')));
+        end
+    end
+
     methods (Test)
         function testPeriodicVsPlain(testCase)
             cfg = config();

@@ -1,6 +1,17 @@
 classdef testFold < matlab.unittest.TestCase
     % TESTFOLD Test tile folding consensus for perfectly periodic patterns.
 
+    methods (TestClassSetup)
+        function setupPaths(testCase)
+            thisDir = fileparts(mfilename('fullpath'));
+            rootDir = fileparts(thisDir);
+            addpath(rootDir);
+            addpath(fullfile(rootDir, 'src', 'compat'));
+            addpath(genpath(fullfile(rootDir, 'src')));
+            addpath(genpath(fullfile(rootDir, 'eval')));
+        end
+    end
+
     methods (Test)
         function testPeriodicReconstruction(testCase)
             H = 120; W = 160;

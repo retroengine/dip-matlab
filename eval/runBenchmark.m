@@ -26,8 +26,20 @@ if ~exist(metaPath, 'file')
     makeSyntheticDataset(cfg);
 end
 
-load(metaPath, 'metaList');
-nCases = numel(metaList);
+data = load(metaPath);
+if isfield(data, 'metaList')
+    metaList = data.metaList;
+else
+    metaList = data;
+end
+
+if iscell(metaList)
+    nCases = numel(metaList);
+    getRec = @(idx) metaList{idx};
+else
+    nCases = numel(metaList);
+    getRec = @(idx) metaList(idx);
+end
 fprintf('Running benchmark on %d synthetic images...\n', nCases);
 
 % Initialize metrics accumulator
@@ -42,7 +54,7 @@ csvRows = {};
 metricsData = [];
 
 for i = 1:nCases
-    rec = metaList(i);
+    rec = getRec(i);
     baseName = rec.name;
     type = rec.type;
     a0True = rec.a0;

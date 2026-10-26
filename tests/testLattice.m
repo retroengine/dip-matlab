@@ -1,6 +1,17 @@
 classdef testLattice < matlab.unittest.TestCase
     % TESTLATTICE Test recovery of known 2D lattice basis vectors.
 
+    methods (TestClassSetup)
+        function setupPaths(testCase)
+            thisDir = fileparts(mfilename('fullpath'));
+            rootDir = fileparts(thisDir);
+            addpath(rootDir);
+            addpath(fullfile(rootDir, 'src', 'compat'));
+            addpath(genpath(fullfile(rootDir, 'src')));
+            addpath(genpath(fullfile(rootDir, 'eval')));
+        end
+    end
+
     methods (Test)
         function testLatticeRecovery(testCase)
             cfg = config();

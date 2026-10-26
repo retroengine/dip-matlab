@@ -3,6 +3,17 @@ classdef testRoi < matlab.unittest.TestCase
     % Assertion: A synthetic image with a 15 px flat white frame gets
     % valid == false in the frame and true inside.
 
+    methods (TestClassSetup)
+        function setupPaths(testCase)
+            thisDir = fileparts(mfilename('fullpath'));
+            rootDir = fileparts(thisDir);
+            addpath(rootDir);
+            addpath(fullfile(rootDir, 'src', 'compat'));
+            addpath(genpath(fullfile(rootDir, 'src')));
+            addpath(genpath(fullfile(rootDir, 'eval')));
+        end
+    end
+
     methods (Test)
         function testFrameExclusion(testCase)
             cfg = config();

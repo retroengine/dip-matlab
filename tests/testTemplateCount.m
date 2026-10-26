@@ -1,6 +1,17 @@
 classdef testTemplateCount < matlab.unittest.TestCase
     % TESTTEMPLATECOUNT Test template instance discovery and localization.
 
+    methods (TestClassSetup)
+        function setupPaths(testCase)
+            thisDir = fileparts(mfilename('fullpath'));
+            rootDir = fileparts(thisDir);
+            addpath(rootDir);
+            addpath(fullfile(rootDir, 'src', 'compat'));
+            addpath(genpath(fullfile(rootDir, 'src')));
+            addpath(genpath(fullfile(rootDir, 'eval')));
+        end
+    end
+
     methods (Test)
         function testRepeatedLogoDetection(testCase)
             cfg = config();

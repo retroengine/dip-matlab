@@ -1,6 +1,17 @@
 classdef testAlphaInversion < matlab.unittest.TestCase
     % TESTALPHAINVERSION Test algebraic inversion fidelity with oracle parameters.
 
+    methods (TestClassSetup)
+        function setupPaths(testCase)
+            thisDir = fileparts(mfilename('fullpath'));
+            rootDir = fileparts(thisDir);
+            addpath(rootDir);
+            addpath(fullfile(rootDir, 'src', 'compat'));
+            addpath(genpath(fullfile(rootDir, 'src')));
+            addpath(genpath(fullfile(rootDir, 'eval')));
+        end
+    end
+
     methods (Test)
         function testExactReconstruction(testCase)
             H = 100; W = 100;

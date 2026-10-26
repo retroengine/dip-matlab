@@ -37,8 +37,8 @@ f = uv - floor(uv);
 % Tile bin grid resolution
 nb = [max(8, min(80, round(norm(a1)))), max(8, min(80, round(norm(a2))))];
 
-bi = min(nb(1), max(1, floor(f(1, :) * nb(1)) + 1));
-bj = min(nb(2), max(1, floor(f(2, :) * nb(2)) + 1));
+bi = min(nb(1), max(1, floor(f(1, :) * nb(1) + 1e-8) + 1));
+bj = min(nb(2), max(1, floor(f(2, :) * nb(2) + 1e-8) + 1));
 
 idx = sub2ind(nb, bi, bj);
 idx = idx(:);

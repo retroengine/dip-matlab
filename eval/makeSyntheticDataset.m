@@ -242,7 +242,7 @@ for k = 1:n
             G = 0.55 + 0.25 * noise;
             B = 0.20 + 0.10 * noise;
         case 2 % Urban/architectural geometric textures
-            stripes = 0.5 + 0.4 * square(2 * pi * 8 * X);
+            stripes = 0.5 + 0.4 * sign(sin(2 * pi * 8 * X));
             R = 0.65 * stripes + 0.2 * Y;
             G = 0.55 * stripes + 0.2 * (1 - X);
             B = 0.50 * stripes + 0.3 * Y;
