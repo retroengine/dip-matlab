@@ -1,42 +1,40 @@
-MATLAB Version: 9.15.0.2458580 (R2023b) Update 4
+MATLAB Version: 26.2.0.3386108 (R2026b)
 
 Toolboxes:
-  MATLAB (9.15)
-  Image Processing Toolbox (11.8)
-  Computer Vision Toolbox (10.5)
-  Statistics and Machine Learning Toolbox (12.6)
+  MATLAB (26.2)
+  MATLAB Copilot (26.2)
 
 Function checks:
-  inpaintCoherent      : exist=2 (FOUND)
-  inpaintExemplar      : exist=2 (FOUND)
-  regionfill           : exist=2 (FOUND)
-  normxcorr2           : exist=2 (FOUND)
-  imgaussfilt          : exist=2 (FOUND)
-  imtophat             : exist=2 (FOUND)
-  imregionalmax        : exist=2 (FOUND)
-  activecontour        : exist=2 (FOUND)
-  graythresh           : exist=2 (FOUND)
-  adaptthresh          : exist=2 (FOUND)
-  niqe                 : exist=2 (FOUND)
-  brisque              : exist=2 (FOUND)
-  ssim                 : exist=2 (FOUND)
-  psnr                 : exist=2 (FOUND)
-  detectMSERFeatures   : exist=2 (FOUND)
-  insertText           : exist=2 (FOUND)
-  exportgraphics       : exist=2 (FOUND)
-  rgb2lab              : exist=2 (FOUND)
-  tiledlayout          : exist=2 (FOUND)
+  inpaintCoherent      : exist=0 (MISSING)
+  inpaintExemplar      : exist=0 (MISSING)
+  regionfill           : exist=0 (MISSING)
+  normxcorr2           : exist=0 (MISSING)
+  imgaussfilt          : exist=0 (MISSING)
+  imtophat             : exist=0 (MISSING)
+  imregionalmax        : exist=0 (MISSING)
+  activecontour        : exist=0 (MISSING)
+  graythresh           : exist=0 (MISSING)
+  adaptthresh          : exist=0 (MISSING)
+  niqe                 : exist=0 (MISSING)
+  brisque              : exist=0 (MISSING)
+  ssim                 : exist=0 (MISSING)
+  psnr                 : exist=0 (MISSING)
+  detectMSERFeatures   : exist=0 (MISSING)
+  insertText           : exist=0 (MISSING)
+  exportgraphics       : exist=6 (FOUND)
+  rgb2lab              : exist=0 (MISSING)
+  tiledlayout          : exist=6 (FOUND)
 
 Capabilities:
-  matlabVersion      : 9.15.0.2458580 (R2023b) Update 4
-  hasExemplar        : True
-  hasCoherent        : True
-  hasRegionfill      : True
-  hasMSER            : True
-  hasInsertText      : True
-  hasNIQE            : True
-  hasBRISQUE         : True
-  hasSSIM            : True
-  hasPSNR            : True
-  hasExportGraphics  : True
-  hasTiledLayout     : True
+  matlabVersion      : 26.2.0.3386108 (R2026b)
+  hasExemplar        : 0
+  hasCoherent        : 0
+  hasRegionfill      : 0
+  hasMSER            : 0
+  hasInsertText      : 0
+  hasNIQE            : 0
+  hasBRISQUE         : 0
+  hasSSIM            : 0
+  hasPSNR            : 0
+  hasExportGraphics  : 1
+  hasTiledLayout     : 1
