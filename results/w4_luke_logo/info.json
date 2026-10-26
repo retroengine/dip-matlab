@@ -1,0 +1,15 @@
+{
+  "name": "w4_luke_logo",
+  "type": "sparse",
+  "recommended_method": "M2 (Exemplar)",
+  "selection_rule": "sparse repeats with alpha inversion",
+  "alpha_estimated": 0.12692307692307692,
+  "alpha_initial": 0.38620689511299133,
+  "alpha_reliable": false,
+  "mask_pixels": 3791,
+  "image_size": [
+    452,
+    678,
+    3
+  ]
+}

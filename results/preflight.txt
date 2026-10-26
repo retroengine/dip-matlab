@@ -1,0 +1,42 @@
+MATLAB Version: 9.15.0.2458580 (R2023b) Update 4
+
+Toolboxes:
+  MATLAB (9.15)
+  Image Processing Toolbox (11.8)
+  Computer Vision Toolbox (10.5)
+  Statistics and Machine Learning Toolbox (12.6)
+
+Function checks:
+  inpaintCoherent      : exist=2 (FOUND)
+  inpaintExemplar      : exist=2 (FOUND)
+  regionfill           : exist=2 (FOUND)
+  normxcorr2           : exist=2 (FOUND)
+  imgaussfilt          : exist=2 (FOUND)
+  imtophat             : exist=2 (FOUND)
+  imregionalmax        : exist=2 (FOUND)
+  activecontour        : exist=2 (FOUND)
+  graythresh           : exist=2 (FOUND)
+  adaptthresh          : exist=2 (FOUND)
+  niqe                 : exist=2 (FOUND)
+  brisque              : exist=2 (FOUND)
+  ssim                 : exist=2 (FOUND)
+  psnr                 : exist=2 (FOUND)
+  detectMSERFeatures   : exist=2 (FOUND)
+  insertText           : exist=2 (FOUND)
+  exportgraphics       : exist=2 (FOUND)
+  rgb2lab              : exist=2 (FOUND)
+  tiledlayout          : exist=2 (FOUND)
+
+Capabilities:
+  matlabVersion      : 9.15.0.2458580 (R2023b) Update 4
+  hasExemplar        : True
+  hasCoherent        : True
+  hasRegionfill      : True
+  hasMSER            : True
+  hasInsertText      : True
+  hasNIQE            : True
+  hasBRISQUE         : True
+  hasSSIM            : True
+  hasPSNR            : True
+  hasExportGraphics  : True
+  hasTiledLayout     : True

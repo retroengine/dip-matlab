@@ -1,0 +1,15 @@
+{
+  "name": "w2_plenio_tiled",
+  "type": "periodic",
+  "recommended_method": "M3 (Alpha Invert)",
+  "selection_rule": "periodic with alpha inversion",
+  "alpha_estimated": 0.39615384615384613,
+  "alpha_initial": 0.2897196114063263,
+  "alpha_reliable": true,
+  "mask_pixels": 92477,
+  "image_size": [
+    365,
+    547,
+    3
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "w1_sample_tiled",
+  "type": "periodic",
+  "recommended_method": "M3 (Alpha Invert)",
+  "selection_rule": "periodic with alpha inversion",
+  "alpha_estimated": 0.3384615384615385,
+  "alpha_initial": 0.40434783697128296,
+  "alpha_reliable": true,
+  "mask_pixels": 25819,
+  "image_size": [
+    281,
+    500,
+    3
+  ]
+}

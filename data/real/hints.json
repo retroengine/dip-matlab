@@ -1,0 +1,15 @@
+{
+  "_comment": "Optional hints for test images to define manual ROI overrides or search regions. Format: [x, y, width, height] in 1-based indexing.",
+  "w1_sample_tiled": {
+    "roi": [24, 24, 452, 233],
+    "description": "Inner photo region excluding white frame and drop shadow"
+  },
+  "w3_proof_bold": {
+    "roi": [15, 15, 541, 320],
+    "description": "Inner photo region excluding dark border"
+  },
+  "w5_zoner_single": {
+    "search_box": [450, 320, 275, 90],
+    "description": "Bottom-right quadrant containing Zoner Photo Studio X logo"
+  }
+}
