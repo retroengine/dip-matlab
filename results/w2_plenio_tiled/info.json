@@ -1,15 +1,1 @@
-{
-  "name": "w2_plenio_tiled",
-  "type": "periodic",
-  "recommended_method": "M3 (Alpha Invert)",
-  "selection_rule": "periodic with alpha inversion",
-  "alpha_estimated": 0.39615384615384613,
-  "alpha_initial": 0.2897196114063263,
-  "alpha_reliable": true,
-  "mask_pixels": 92477,
-  "image_size": [
-    365,
-    547,
-    3
-  ]
-}
+{"name":"w2_plenio_tiled","type":"periodic","recommended_method":"M1 (Coherent Inpaint)","selection_rule":"periodic with unreliable alpha inversion -> coherent fallback","alpha_estimated":0.069230769230769235,"alpha_initial":0.28022116681364606,"alpha_reliable":false,"mask_pixels":187546,"image_size":[365,547,3]}

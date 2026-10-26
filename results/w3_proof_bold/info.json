@@ -1,15 +1,1 @@
-{
-  "name": "w3_proof_bold",
-  "type": "single",
-  "recommended_method": "M2 (Exemplar)",
-  "selection_rule": "single/bold localized watermark -> exemplar inpaint",
-  "alpha_estimated": 0.12692307692307692,
-  "alpha_initial": 0.11587982624769211,
-  "alpha_reliable": false,
-  "mask_pixels": 22387,
-  "image_size": [
-    350,
-    571,
-    3
-  ]
-}
+{"name":"w3_proof_bold","type":"periodic","recommended_method":"M1 (Coherent Inpaint)","selection_rule":"periodic with unreliable alpha inversion -> coherent fallback","alpha_estimated":0.069230769230769235,"alpha_initial":0.30970872313125836,"alpha_reliable":false,"mask_pixels":104092,"image_size":[350,571,3]}
