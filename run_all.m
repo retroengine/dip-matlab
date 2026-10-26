@@ -1,17 +1,16 @@
 function exitCode = run_all()
-% RUN_ALL Master entry point for the Visible Watermark Removal project.
+% RUN_ALL  Master entry point for the Visible Watermark Removal project.
 %
-% Running this single script executes the entire pipeline end-to-end:
-%   1. Preflight environment & capability inspection
-%   2. Synthetic benchmark dataset generation (24 test cases across 4 types)
-%   3. Quantitative evaluation benchmark (Auto vs Oracle masks x M1/M2/M3) -> results/metrics.csv
-%   4. Pipeline execution on all 5 real test images (data/real/) -> results/<name>/... & comparison PNGs
-%   5. Comprehensive unit test suite execution (9 test suites)
+% Executes the entire pipeline end-to-end:
+%   1. Preflight  – environment & capability inspection
+%   2. Synthetic  – benchmark dataset generation (24 cases, 4 types)
+%   3. Benchmark  – Auto vs Oracle masks x M1/M2/M3  ->  results/metrics.csv
+%   4. Real imgs  – all images in data/real/  (original 5 + new wm* images)
+%   5. Unit tests – 9 matlab.unittest suites
 %
-% Can be run from MATLAB GUI:
-%   >> run_all
-% Or headless from terminal:
-%   matlab -batch "run_all"
+% Usage:
+%   >> run_all           (from MATLAB GUI)
+%   matlab -batch "run_all"   (headless)
 
 clc;
 startTime = tic;
@@ -19,11 +18,10 @@ fprintf('======================================================================\
 fprintf('   VISIBLE WATERMARK DETECTION & REMOVAL (CLASSICAL DIP PIPELINE)     \n');
 fprintf('======================================================================\n\n');
 
-% Ensure src, eval, and tests folders are in MATLAB path
 baseDir = fileparts(mfilename('fullpath'));
 if isempty(baseDir), baseDir = pwd; end
+
 addpath(baseDir);
-addpath(fullfile(baseDir, 'src', 'compat'));
 addpath(genpath(fullfile(baseDir, 'src')));
 addpath(genpath(fullfile(baseDir, 'eval')));
 addpath(fullfile(baseDir, 'tests'));
@@ -34,17 +32,17 @@ end
 
 overallErrors = 0;
 
-%% STEP 1: PREFLIGHT CHECK
+%% ── STEP 1: PREFLIGHT ──────────────────────────────────────────────────
 fprintf('\n>>> STEP 1/5: Running Environment Preflight Check...\n');
 try
-    caps = preflight();
+    preflight();
     fprintf('  [OK] Preflight complete. Capabilities saved to results/caps.mat\n');
 catch ME
     warning('Preflight check failed: %s', ME.message);
     overallErrors = overallErrors + 1;
 end
 
-%% STEP 2: SYNTHETIC DATASET GENERATION
+%% ── STEP 2: SYNTHETIC DATASET ──────────────────────────────────────────
 fprintf('\n>>> STEP 2/5: Generating Synthetic Benchmark Dataset (24 cases)...\n');
 try
     cfg = config();
@@ -55,26 +53,26 @@ catch ME
     overallErrors = overallErrors + 1;
 end
 
-%% STEP 3: SYNTHETIC BENCHMARK EVALUATION
-fprintf('\n>>> STEP 3/5: Running Quantitative Benchmark & Exporting results/metrics.csv...\n');
+%% ── STEP 3: QUANTITATIVE BENCHMARK ─────────────────────────────────────
+fprintf('\n>>> STEP 3/5: Running Quantitative Benchmark -> results/metrics.csv...\n');
 try
     cfg = config();
-    summaryTable = runBenchmark(cfg);
-    fprintf('  [OK] Quantitative benchmark complete. Table saved to results/metrics.csv\n');
+    runBenchmark(cfg);
+    fprintf('  [OK] Benchmark complete. Table saved to results/metrics.csv\n');
 catch ME
     warning('Benchmark execution failed: %s', ME.message);
     overallErrors = overallErrors + 1;
 end
 
-%% STEP 4: REAL IMAGES PIPELINE EXECUTION
-fprintf('\n>>> STEP 4/5: Running Watermark Pipeline on Real Test Images (data/real/)...\n');
+%% ── STEP 4: REAL IMAGES ─────────────────────────────────────────────────
+fprintf('\n>>> STEP 4/5: Running Pipeline on all images in data/real/...\n');
 try
     realInputDir = fullfile(baseDir, 'data', 'real');
     code = main(realInputDir);
     if code == 0
-        fprintf('  [OK] Real images processed. Output artifacts saved in results/\n');
+        fprintf('  [OK] All real images processed. Artifacts saved in results/\n');
     else
-        warning('One or more real images encountered errors during main() execution.');
+        warning('One or more real images encountered errors. See results/errors.log');
         overallErrors = overallErrors + 1;
     end
 catch ME
@@ -82,44 +80,49 @@ catch ME
     overallErrors = overallErrors + 1;
 end
 
-%% STEP 5: UNIT TEST SUITE
-fprintf('\n>>> STEP 5/5: Running matlab.unittest Suite (9 tests)...\n');
+% ── List what was produced ──
+outDir = fullfile(baseDir, 'results');
+resultDirs = dir(outDir);
+resultDirs = resultDirs([resultDirs.isdir] & ~startsWith({resultDirs.name},'.'));
+fprintf('  Produced %d result folders in results/\n', numel(resultDirs));
+
+%% ── STEP 5: UNIT TESTS ──────────────────────────────────────────────────
+fprintf('\n>>> STEP 5/5: Running matlab.unittest Suite...\n');
 numFailedTests = 0;
 try
-    testResults = runtests('tests');
-    disp(testResults);
+    testResults    = runtests(fullfile(baseDir,'tests'));
     numFailedTests = sum([testResults.Failed]);
+    disp(testResults);
     if numFailedTests == 0
-        fprintf('  [OK] All %d unit tests PASSED successfully!\n', numel(testResults));
+        fprintf('  [OK] All %d unit tests PASSED.\n', numel(testResults));
     else
-        warning('%d out of %d unit tests FAILED.', numFailedTests, numel(testResults));
+        warning('%d/%d unit tests FAILED.', numFailedTests, numel(testResults));
         overallErrors = overallErrors + numFailedTests;
     end
 catch ME
-    warning('Unit test suite execution failed: %s', ME.message);
+    warning('Unit test suite failed: %s', ME.message);
     overallErrors = overallErrors + 1;
 end
 
-%% SUMMARY
-elapsedTime = toc(startTime);
+%% ── SUMMARY ─────────────────────────────────────────────────────────────
+elapsed = toc(startTime);
 fprintf('\n======================================================================\n');
 fprintf('                       EXECUTION SUMMARY                              \n');
 fprintf('======================================================================\n');
-fprintf('Total Elapsed Time: %.1f seconds\n', elapsedTime);
-fprintf('Key Artifacts Generated:\n');
-fprintf('  1. Preflight Report:     results/preflight.txt & results/caps.mat\n');
-fprintf('  2. Benchmark Metrics:    results/metrics.csv\n');
-fprintf('  3. Real Image Results:   results/w1_sample_tiled/ ... results/w5_zoner_single/\n');
-fprintf('  4. Comparisons:          results/comparison_w1_sample_tiled.png ...\n');
-fprintf('  5. Full Report:          report/README.md & report/phase_log.md\n');
+fprintf('Total Elapsed Time : %.1f seconds\n', elapsed);
+fprintf('Artifacts:\n');
+fprintf('  Preflight     : results/preflight.txt, results/caps.mat\n');
+fprintf('  Benchmark     : results/metrics.csv\n');
+fprintf('  Real images   : results/<name>/{mask,overlay,m1,m2,m3,recommended}.png\n');
+fprintf('  Comparisons   : results/comparison_<name>.png (one per image)\n');
+fprintf('  Report        : report/README.md\n');
 
 if overallErrors == 0
     fprintf('\n>>> ALL PHASES & TESTS PASSED WITH ZERO ERRORS! <<<\n');
     exitCode = 0;
 else
-    fprintf('\n>>> COMPLETED WITH %d ERRORS/FAILURES. Check logs for details. <<<\n', overallErrors);
+    fprintf('\n>>> COMPLETED WITH %d ERRORS/FAILURES. Check results/errors.log <<<\n', overallErrors);
     exitCode = 1;
 end
 fprintf('======================================================================\n');
-
 end

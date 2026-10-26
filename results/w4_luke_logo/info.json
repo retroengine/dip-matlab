@@ -1,1 +1,0 @@
-{"name":"w4_luke_logo","type":"periodic","recommended_method":"M1 (Coherent Inpaint)","selection_rule":"periodic with unreliable alpha inversion -> coherent fallback","alpha_estimated":0.069230769230769235,"alpha_initial":0.2095137437467427,"alpha_reliable":false,"mask_pixels":162922,"image_size":[452,678,3]}

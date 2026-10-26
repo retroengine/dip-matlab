@@ -1,1 +1,0 @@
-{"name":"w5_zoner_single","type":"single","recommended_method":"M2 (Exemplar Inpaint)","selection_rule":"single/bold localized watermark -> exemplar inpainting","alpha_estimated":0.069230769230769235,"alpha_initial":0.45569907908973006,"alpha_reliable":false,"mask_pixels":12983,"image_size":[418,733,3]}

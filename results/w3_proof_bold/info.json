@@ -1,1 +1,0 @@
-{"name":"w3_proof_bold","type":"periodic","recommended_method":"M1 (Coherent Inpaint)","selection_rule":"periodic with unreliable alpha inversion -> coherent fallback","alpha_estimated":0.069230769230769235,"alpha_initial":0.30970872313125836,"alpha_reliable":false,"mask_pixels":104092,"image_size":[350,571,3]}

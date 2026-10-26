@@ -63,32 +63,17 @@ for i = 1:nCases
     cleanImg = im2double(imread(fullfile(cfg.paths.syn, 'clean', [baseName '.png'])));
     markedImg = im2double(imread(fullfile(cfg.paths.syn, 'marked', [baseName '.jpg'])));
     gtMask = imread(fullfile(cfg.paths.syn, 'gt_mask', [baseName '.png'])) > 0;
-    gtAlpha = im2double(imread(fullfile(cfg.paths.syn, 'gt_alpha', [baseName '.png'])));
+    gtAlpha = double(imread(fullfile(cfg.paths.syn, 'gt_alpha', [baseName '.png']))) / 65535;
     
     % Preprocess marked image
     P = preprocess(markedImg, cfg, baseName);
     
-    % Run automatic detection
-    switch type
-        case 'tiledText'
-            try
-                [~, info] = classifyWatermark(P, cfg);
-                D_auto = detectPeriodic(P, cfg, info);
-            catch
-                D_auto = detectGeneric(P, cfg, struct(), baseName);
-            end
-        case 'boldText'
-            D_auto = detectGeneric(P, cfg, struct(), baseName);
-        case 'logoSparse'
-            try
-                D_auto = detectTemplate(P, cfg);
-            catch
-                D_auto = detectGeneric(P, cfg, struct(), baseName);
-            end
-        case 'cornerLogo'
-            D_auto = detectGeneric(P, cfg, struct(), baseName);
-        otherwise
-            D_auto = detectGeneric(P, cfg, struct(), baseName);
+    % Run automatic detection (same dispatch as main)
+    evalc('[wmType, classInfo] = classifyWatermark(P, cfg);');
+    switch wmType
+        case 'periodic', evalc('D_auto = detectPeriodic(P, cfg, classInfo);');
+        case 'sparse',   evalc('D_auto = detectTemplate(P, cfg, classInfo);');
+        otherwise,       evalc('D_auto = detectGeneric(P, cfg, classInfo, baseName);');
     end
     
     % Oracle mask configuration
@@ -117,7 +102,8 @@ for i = 1:nCases
         met_m2 = computeMetrics(cleanImg, markedImg, J_m2, gtAlpha, D.maskTight, cfg, NaN, a0True);
         
         % Method 3: Alpha Inversion (uses J_m1 as initial guess)
-        [J_m3_raw, ainfo] = removeAlphaInvert(markedImg, D, J_m1, cfg);
+        J_m1_raw = removeInpaint(markedImg, D.maskDil, 'coherent', cfg);
+        evalc('[J_m3_raw, ainfo] = removeAlphaInvert(markedImg, D, J_m1_raw, cfg);');
         J_m3 = blendResult(markedImg, J_m3_raw, D.maskDil, cfg);
         met_m3 = computeMetrics(cleanImg, markedImg, J_m3, gtAlpha, D.maskTight, cfg, ainfo.a0, a0True);
         

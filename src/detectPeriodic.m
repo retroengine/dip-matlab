@@ -1,64 +1,39 @@
 function D = detectPeriodic(P, cfg, info)
-% DETECTPERIODIC Detect periodic tiled watermark via tile-folding and consensus filtering.
+% DETECTPERIODIC Detect a tiled watermark by folding the evidence map on its lattice.
 %
-% Reconstructs consensus watermark pattern from 2D periodic tile repetitions,
-% gating by local evidence to suppress background structures.
+% The median across tiles (foldTiles) keeps only structure that repeats at
+% every lattice position, i.e. the watermark. The consensus map is Otsu-
+% thresholded and intersected with a local-evidence gate so that pixels are
+% only kept where the image itself also shows watermark evidence.
 %
 % Inputs:
 %   P    - Preprocessed struct from preprocess.m
 %   cfg  - Configuration struct
-%   info - (Optional) classification info struct with lattice vectors
+%   info - (Optional) classification info with lattice a1, a2 and T
 %
 % Output:
 %   D    - Detection struct with maskTight, maskDil, m, type, info
 
 if nargin < 3 || isempty(info) || ~isfield(info, 'a1') || isempty(info.a1)
     [~, info] = classifyWatermark(P, cfg);
-end
-
-[T, ~] = evidenceMap(P, cfg);
-
-% 1. Retrieve or re-estimate lattice vectors
-if isfield(info, 'a1') && ~isempty(info.a1) && isfield(info, 'a2') && ~isempty(info.a2)
-    a1 = info.a1;
-    a2 = info.a2;
-else
-    if isfield(info, 'peaks') && size(info.peaks, 1) >= 2
-        [a1, a2] = findLattice(info.peaks, T, P.valid, cfg);
-    else
-        error('detectPeriodic:noLattice', 'Cannot detect periodic watermark without valid lattice.');
+    if isempty(info.a1)
+        error('detectPeriodic:noLattice', 'No periodic lattice found.');
     end
 end
-
-% 2. Fold tiles along lattice to get consensus evidence
-[~, evid, ~] = foldTiles(T, P.valid, a1, a2);
-
-% 3. Consensus thresholding
-evidValid = evid(P.valid & evid > 0);
-if ~isempty(evidValid)
-    lvlEvid = graythresh(evidValid);
-    tight0 = evid > (lvlEvid * max(evid(:)));
+if isfield(info, 'T')
+    T = info.T;
 else
-    tight0 = false(size(evid));
+    T = evidenceMap(P, cfg);
 end
 
-% 4. Local evidence agreement gate
-Tvalid = T(P.valid & T > 0);
-if ~isempty(Tvalid)
-    lvlT = graythresh(Tvalid);
-    gateSeed = T > (cfg.per.localGate * lvlT * max(T(:)));
-else
-    gateSeed = T > 0.1;
-end
-gate = imdilate(gateSeed, strel('disk', 2));
+[~, evid] = foldTiles(T, P.valid, info.a1, info.a2);
+e = evid / max(max(evid(:)), eps);
+consensus = e > graythresh(e(P.valid));
 
-% 5. Intersect consensus with local gate and valid ROI
-rawMask = tight0 & gate & P.valid;
+gate = imdilate(T > cfg.per.localGate * graythresh(T(P.valid)), strel('disk', 2));
+rawMask = consensus & gate & P.valid;
 
-% 6. Refine mask
 info.detector = 'periodic';
-info.a1 = a1;
-info.a2 = a2;
+fprintf('  [periodic] a1=[%.1f %.1f] a2=[%.1f %.1f]\n', info.a1, info.a2);
 D = refineMask(rawMask, P, cfg, 'periodic', info);
-
 end

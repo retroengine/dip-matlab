@@ -1,161 +1,106 @@
 function [type, info] = classifyWatermark(P, cfg)
-% CLASSIFYWATERMARK Classify watermark as 'periodic', 'sparse', or 'single'.
+% CLASSIFYWATERMARK Classify the watermark as 'periodic', 'sparse' or 'single'.
 %
 % Algorithm:
-%   1. Hann-windowed 2D autocorrelation of high-pass luminance.
-%   2. Z-score map outside minLag exclusion disk.
-%   3. Regional maxima with z > z_thresh.
-%   4. Check for a valid 2D periodic lattice with enough tiles.
-%   5. If not periodic, run mineRepeats for repeated logo/text structures.
-%   6. Default to 'single'.
+%   1. Autocorrelation of the (mean-removed, Hann-windowed) watermark
+%      evidence map T inside the ROI, unbiased by the overlap count.
+%   2. z-score map outside cfg.cls.minLag; lags within cfg.cls.axisBand px of
+%      the vertical axis are suppressed (they are windowing / JPEG ridges, not
+%      repeats; the x axis stays open because tiled rows run along it).
+%   3. Regional maxima with z > cfg.cls.zThresh. If a non-collinear lattice
+%      exists with >= cfg.per.minTiles cells in the ROI and folding T on it
+%      explains the evidence (consensus correlation >= cfg.cls.minFoldCorr)
+%      -> 'periodic'.
+%   4. Otherwise mineRepeats: >= cfg.cls.minRepeats near-identical
+%      structures -> 'sparse'.
+%   5. Otherwise 'single'.
 %
 % Outputs:
 %   type - 'periodic' | 'sparse' | 'single'
-%   info - struct with peaks, lattice, zMap, reasons, template info
+%   info - struct with zMap, peaks, lattice, template and decision reasons
 
-info          = struct();
-info.reasons  = {};
-info.type     = 'single';
-info.peaks    = [];
-info.a1       = [];
-info.a2       = [];
-info.tpl      = [];
-info.tplBox   = [];
-
+info = struct('reasons', {{}}, 'type', 'single', 'peaks', [], 'peakZ', [], ...
+              'a1', [], 'a2', [], 'tpl', [], 'tplBox', []);
 [H, W] = size(P.gray);
+[T, ~] = evidenceMap(P, cfg);
+info.T = T;
 
-% -----------------------------------------------------------------------
-% 1. Hann-windowed high-pass; normalize so autocorr peaks are z-scored
-% -----------------------------------------------------------------------
-hannH  = hann(H);
-hannW  = hann(W);
-h_win  = P.hp .* (hannH * hannW') .* double(P.valid);
+% 1. Autocorrelation of the windowed, mean-removed evidence
+hann = @(n) 0.5 - 0.5 * cos(2 * pi * (0:n-1)' / max(n - 1, 1));
+% Feature: gradient magnitude of the gray image, high-passed (removes horizon /
+% illumination bias), mean-removed and windowed before autocorrelation.
+Gm = imgradient(imgaussfilt(P.gray, cfg.cls.gradSigma));
+Gm = Gm - imgaussfilt(Gm, cfg.cls.hpSigma);
+t = (Gm - mean(Gm(P.valid))) .* (hann(H) * hann(W)') .* P.valid;
+ac = autocorrNorm(t, P.valid);
+cy = H + 1; cx = W + 1;
 
-ac = autocorrNorm(h_win, P.valid);
-
-% Autocorr is (2H) x (2W); center is at (H+1, W+1)
-cy = H + 1;   cx = W + 1;
-
-% -----------------------------------------------------------------------
-% 2. Lag exclusion disk and z-score map
-% -----------------------------------------------------------------------
-[xx, yy] = meshgrid(1:2*W, 1:2*H);
-distMap   = hypot(xx - cx, yy - cy);
-lagMask   = distMap >= cfg.cls.minLag & distMap <= min(H, W) * 0.75;
-
-acSamples = ac(lagMask);
-acSamples = acSamples(acSamples > -0.8);   % drop extreme outliers
-bgMean = mean(acSamples);
-bgStd  = std(acSamples);
-
-zMap          = (ac - bgMean) / max(bgStd, eps);
+% 2. z-score map over the admissible lag region
+[xx, yy] = meshgrid((1:2*W) - cx, (1:2*H) - cy);
+lagMask = hypot(xx, yy) >= cfg.cls.minLag & ...
+          abs(xx) <= cfg.cls.maxLagFrac * W & abs(yy) <= cfg.cls.maxLagFrac * H & ...
+          abs(xx) > cfg.cls.axisBand;   % vertical ridge of the high-pass / JPEG artifact
+bg = ac(lagMask);
+bgMed = median(bg);
+zMap = (ac - bgMed) / max(1.4826 * median(abs(bg - bgMed)), eps);   % robust z-score
 zMap(~lagMask) = 0;
-info.zMap      = zMap;
+info.zMap = zMap;
 
-% -----------------------------------------------------------------------
-% 3. Find regional maxima above threshold
-% -----------------------------------------------------------------------
-if exist('imregionalmax','file') || exist('imregionalmax','builtin')
-    regMax = imregionalmax(zMap);
-else
-    dil    = imdilate(zMap, strel('disk', 2));
-    regMax = (zMap == dil) & (zMap > 0);
-end
+% 3. Significant peaks, one per +/- pair
+pk = imregionalmax(zMap) & zMap >= cfg.cls.zThresh;
+[py, px] = find(pk);
+dx = px - cx; dy = py - cy;
+half = dy > 0 | (dy == 0 & dx > 0);
+dx = dx(half); dy = dy(half);
+peakZ = zMap(sub2ind(size(zMap), py(half), px(half)));
+[peakZ, o] = sort(peakZ, 'descend');
+o = o(1:min(cfg.cls.maxPeaks, numel(o)));
+peakZ = peakZ(1:numel(o));
+info.peaks = [dx(o), dy(o)];
+info.peakZ = peakZ;
+fprintf('  [classify] %d significant AC peaks (z>=%.1f)\n', numel(o), cfg.cls.zThresh);
 
-sigMax     = regMax & (zMap >= cfg.cls.zThresh);
-[peakY, peakX] = find(sigMax);
-
-% Displacements from AC centre
-dx = peakX - cx;
-dy = peakY - cy;
-
-% Keep only unique half-plane (autocorr symmetric: peak(dx,dy)=peak(-dx,-dy))
-halfPlane = (dy > 0) | (dy == 0 & dx > 0);
-dx = dx(halfPlane);
-dy = dy(halfPlane);
-peakZ = zMap(sub2ind(size(zMap), peakY(halfPlane), peakX(halfPlane)));
-
-% Sort descending and cap
-[~, sortZ]  = sort(peakZ, 'descend');
-nKeep       = min(cfg.cls.maxPeaks, numel(sortZ));
-dx          = dx(sortZ(1:nKeep));
-dy          = dy(sortZ(1:nKeep));
-peakZ       = peakZ(sortZ(1:nKeep));
-
-peaksXY     = [dx, dy];
-info.peaks  = peaksXY;
-info.peakZ  = peakZ;
-
-fprintf('  [classify] %d significant AC peaks (z>%.1f)\n', size(peaksXY,1), cfg.cls.zThresh);
-
-% -----------------------------------------------------------------------
-% 4. Check for 'periodic' classification
-% -----------------------------------------------------------------------
-if size(peaksXY, 1) >= cfg.cls.minOffPeaks
+if size(info.peaks, 1) >= cfg.cls.minOffPeaks
     try
-        [T, ~] = evidenceMap(P, cfg);
-        [a1, a2] = findLattice(peaksXY, T, P.valid, cfg);
-
-        % Estimate tile count: valid area / unit-cell area
-        cellArea = abs(a1(1)*a2(2) - a1(2)*a2(1));
-        numTiles = sum(P.valid(:)) / max(cellArea, 1);
-
-        info.a1       = a1;
-        info.a2       = a2;
-        info.numTiles = numTiles;
-
-        fprintf('  [classify] Lattice: a1=[%.1f %.1f] a2=[%.1f %.1f], ~%.1f tiles\n', ...
-                a1(1), a1(2), a2(1), a2(2), numTiles);
-
-        if numTiles >= cfg.cls.minTiles
-            % Extra guard: require evidence that tiles actually repeat
-            % i.e. the top AC peak z-score is high (>= 1.5x threshold)
-            topZ = max(peakZ);
-            if topZ >= 1.5 * cfg.cls.zThresh
-                type         = 'periodic';
-                info.type    = 'periodic';
-                info.reasons{end+1} = sprintf( ...
-                    'Lattice with %.0f tiles, top z=%.1f', numTiles, topZ);
-                return;
-            else
-                info.reasons{end+1} = sprintf( ...
-                    'Lattice OK but top z=%.1f < 1.5*thresh -> too weak for periodic', topZ);
-            end
-        else
-            info.reasons{end+1} = sprintf( ...
-                'Lattice found but tiles %.1f < minTiles %d', numTiles, cfg.cls.minTiles);
+        [a1, a2] = findLattice(info.peaks, T, P.valid, cfg);
+        nTiles = nnz(P.valid) / max(abs(a1(1)*a2(2) - a1(2)*a2(1)), 1);
+        [~, evid] = foldTiles(T, P.valid, a1, a2);
+        cc = corrcoef(T(P.valid), evid(P.valid));
+        foldCorr = cc(1, 2);
+        info.a1 = a1; info.a2 = a2; info.numTiles = nTiles; info.foldCorr = foldCorr;
+        fprintf('  [classify] lattice a1=[%.1f %.1f] a2=[%.1f %.1f], %.1f tiles, fold corr %.2f\n', ...
+                a1, a2, nTiles, foldCorr);
+        if nTiles >= cfg.per.minTiles && foldCorr >= cfg.cls.minFoldCorr
+            type = 'periodic';
+            info.type = type;
+            info.reasons{end+1} = sprintf('lattice with %.0f tiles, fold corr %.2f', nTiles, foldCorr);
+            return;
         end
+        info.reasons{end+1} = sprintf('lattice rejected: %.1f tiles (min %d), fold corr %.2f (min %.2f)', ...
+            nTiles, cfg.per.minTiles, foldCorr, cfg.cls.minFoldCorr);
     catch ME
-        info.reasons{end+1} = sprintf('findLattice failed: %s', ME.message);
+        info.reasons{end+1} = sprintf('no lattice: %s', ME.message);
     end
 else
-    info.reasons{end+1} = sprintf('Peaks %d < minOffPeaks %d', ...
-        size(peaksXY,1), cfg.cls.minOffPeaks);
+    info.reasons{end+1} = sprintf('%d AC peaks < %d', size(info.peaks, 1), cfg.cls.minOffPeaks);
 end
 
-% -----------------------------------------------------------------------
-% 5. Check for 'sparse' (repeated logos / instances)
-% -----------------------------------------------------------------------
-[T, ~] = evidenceMap(P, cfg);
-[tpl, tplBox, repeatsInfo] = mineRepeats(T, cfg);
-
-if ~isempty(tpl) && repeatsInfo.count >= cfg.cls.minRepeats
-    type              = 'sparse';
-    info.type         = 'sparse';
-    info.tpl          = tpl;
-    info.tplBox       = tplBox;
-    info.repeatsInfo  = repeatsInfo;
-    info.reasons{end+1} = sprintf('Repeated template: %d instances', repeatsInfo.count);
-    fprintf('  [classify] sparse: %d repeated instances found\n', repeatsInfo.count);
+% 4. Repeated structures
+[tpl, tplBox, rep] = mineRepeats(T, P.valid, cfg);
+info.repeatsInfo = rep;
+if ~isempty(tpl) && rep.count >= cfg.cls.minRepeats
+    type = 'sparse';
+    info.type = type;
+    info.tpl = tpl;
+    info.tplBox = tplBox;
+    info.reasons{end+1} = sprintf('%d repeated structures', rep.count);
+    fprintf('  [classify] -> sparse (%d repeats)\n', rep.count);
     return;
 end
+info.reasons{end+1} = sprintf('%d repeats < %d', rep.count, cfg.cls.minRepeats);
 
-% -----------------------------------------------------------------------
-% 6. Single / localized watermark
-% -----------------------------------------------------------------------
-type             = 'single';
-info.type        = 'single';
-info.reasons{end+1} = 'No reliable periodicity or repeated template found';
-fprintf('  [classify] -> single\n');
-
+% 5. Single / localized
+type = 'single';
+info.type = type;
+fprintf('  [classify] -> single (%s)\n', strjoin(info.reasons, '; '));
 end

@@ -8,7 +8,6 @@ classdef testRoi < matlab.unittest.TestCase
             thisDir = fileparts(mfilename('fullpath'));
             rootDir = fileparts(thisDir);
             addpath(rootDir);
-            addpath(fullfile(rootDir, 'src', 'compat'));
             addpath(genpath(fullfile(rootDir, 'src')));
             addpath(genpath(fullfile(rootDir, 'eval')));
         end

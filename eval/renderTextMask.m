@@ -1,112 +1,63 @@
 function m = renderTextMask(str, sz, angleDeg, fontSize, fontName)
-% RENDERTEXTMASK Render antialiased binary text mask m in [0, 1] for synthetic watermarking.
+% RENDERTEXTMASK Render anti-aliased text coverage m in [0, 1].
+%
+% Text is drawn black-on-white in an invisible figure (works under
+% matlab -batch), read back, rotated with imrotate('loose') so nothing is
+% clipped, and cropped to its tight bounding box.
 %
 % Inputs:
-%   str      - Text string to render
-%   sz       - [height, width] of output mask
-%   angleDeg - (Optional) rotation angle in degrees (default 0)
-%   fontSize - (Optional) font size in points (default 24)
-%   fontName - (Optional) font family name (default 'Helvetica')
+%   str      - Text string
+%   sz       - [] for a tight crop, or [h w]: the text is scaled down if
+%              needed to fit and centred on an h x w canvas
+%   angleDeg - Rotation in degrees, counter-clockwise (default 0)
+%   fontSize - Font size in pixels (default 24)
+%   fontName - Font family (default 'Arial')
 %
 % Output:
-%   m        - 2D double array in [0, 1] of size sz with soft antialiased coverage
+%   m        - 2-D double coverage map in [0, 1]
 
-if nargin < 3, angleDeg = 0; end
+if nargin < 2, sz = []; end
+if nargin < 3 || isempty(angleDeg), angleDeg = 0; end
 if nargin < 4 || isempty(fontSize), fontSize = 24; end
-if nargin < 5 || isempty(fontName), fontName = 'Helvetica'; end
+if nargin < 5 || isempty(fontName), fontName = 'Arial'; end
 
-H = sz(1);
-W = sz(2);
+% Canvas comfortably larger than the text
+cw = ceil(fontSize * (numel(str) + 2));
+ch = ceil(fontSize * 3);
+f = figure('Visible', 'off', 'Color', 'white', 'Units', 'pixels', ...
+           'Position', [50 50 cw ch], 'MenuBar', 'none', 'ToolBar', 'none');
+cleanup = onCleanup(@() close(f));
+ax = axes('Parent', f, 'Units', 'normalized', 'Position', [0 0 1 1], ...
+          'XLim', [0 cw], 'YLim', [0 ch], 'Visible', 'off');
+text(ax, cw / 2, ch / 2, str, 'FontUnits', 'pixels', 'FontSize', fontSize, ...
+     'FontName', fontName, 'FontWeight', 'bold', 'Color', 'black', ...
+     'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle');
+frame = print(f, '-RGBImage', '-r96');
 
-% Method A: insertText if available
-if exist('insertText', 'file') || exist('insertText', 'builtin')
-    try
-        canvas = zeros(H, W, 3, 'uint8');
-        textPos = [floor(W / 2), floor(H / 2)];
-        rgb = insertText(canvas, textPos, str, ...
-            'FontSize', fontSize, ...
-            'Font', fontName, ...
-            'TextColor', 'white', ...
-            'BoxOpacity', 0, ...
-            'AnchorPoint', 'Center');
-        grayImg = rgb2gray(im2double(rgb));
-        if angleDeg ~= 0
-            grayImg = imrotate(grayImg, angleDeg, 'bilinear', 'crop');
-        end
-        m = min(max(grayImg, 0), 1);
-        return;
-    catch
-        % Fall through to headless figure rendering
+m = 1 - im2double(rgb2gray(frame));
+if angleDeg ~= 0
+    m = imrotate(m, angleDeg, 'bilinear', 'loose');
+end
+m = tightCrop(min(max(m, 0), 1));
+
+if ~isempty(sz)
+    scale = min([1, sz(1) / size(m, 1), sz(2) / size(m, 2)]);
+    if scale < 1
+        m = min(max(imresize(m, scale, 'bilinear'), 0), 1);
     end
+    canvas = zeros(sz(1), sz(2));
+    y0 = floor((sz(1) - size(m, 1)) / 2);
+    x0 = floor((sz(2) - size(m, 2)) / 2);
+    canvas(y0 + (1:size(m, 1)), x0 + (1:size(m, 2))) = m;
+    m = canvas;
+end
 end
 
-% Method B: Headless figure rendering via exportgraphics or print
-try
-    f = figure('Visible', 'off', 'Color', 'white', 'Position', [100 100 W H], 'MenuBar', 'none', 'ToolBar', 'none');
-    ax = axes('Parent', f, 'Position', [0 0 1 1], 'Visible', 'off', 'Color', 'white');
-    xlim(ax, [0 W]);
-    ylim(ax, [0 H]);
-    text(ax, W/2, H/2, str, ...
-        'FontSize', fontSize, ...
-        'FontName', fontName, ...
-        'FontWeight', 'bold', ...
-        'Color', 'black', ...
-        'HorizontalAlignment', 'center', ...
-        'VerticalAlignment', 'middle', ...
-        'Rotation', angleDeg);
-    
-    tmpFile = fullfile(tempdir, sprintf('text_render_%d.png', randi(1000000)));
-    if exist('exportgraphics', 'file') || exist('exportgraphics', 'builtin')
-        exportgraphics(ax, tmpFile, 'Resolution', 72);
-    else
-        print(f, tmpFile, '-dpng', '-r72');
-    end
-    close(f);
-    
-    if exist(tmpFile, 'file')
-        rendered = imread(tmpFile);
-        delete(tmpFile);
-        if size(rendered, 3) == 3
-            grayRender = rgb2gray(im2double(rendered));
-        else
-            grayRender = im2double(rendered);
-        end
-        % Text is black on white canvas -> invert so text = 1
-        rawM = 1.0 - grayRender;
-        if size(rawM, 1) ~= H || size(rawM, 2) ~= W
-            rawM = imresize(rawM, [H, W], 'bilinear');
-        end
-        m = min(max(rawM, 0), 1);
-        return;
-    end
-catch
-    % Fall through to procedural raster font if headless figure fails
+function m = tightCrop(m)
+[r, c] = find(m > 0.02);
+if isempty(r)
+    m = zeros(1, 1);
+    return;
 end
-
-% Method C: Fallback geometric stroke rendering for headless environments
-m = zeros(H, W);
-cx = W / 2;
-cy = H / 2;
-rad = angleDeg * pi / 180;
-u = [cos(rad), sin(rad)];
-v = [-sin(rad), cos(rad)];
-
-% Procedural stroke grid based on string length
-numChars = numel(str);
-charW = max(8, fontSize * 0.6);
-charH = max(12, fontSize * 0.9);
-totalLen = numChars * charW;
-
-[X, Y] = meshgrid(1:W, 1:H);
-relX = X - cx;
-relY = Y - cy;
-
-projU = relX * u(1) + relY * u(2);
-projV = relX * v(1) + relY * v(2);
-
-inText = abs(projU) <= (totalLen / 2) & abs(projV) <= (charH / 2);
-m(inText) = 1.0;
-m = imgaussfilt(m, 0.8);
-m = min(max(m, 0), 1);
-
+m = m(min(r):max(r), min(c):max(c));
 end

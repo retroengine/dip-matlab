@@ -1,154 +1,96 @@
 function D = detectGeneric(P, cfg, info, imgName)
-% DETECTGENERIC Generic detector for single/localized watermarks (e.g., logos, text bands).
+% DETECTGENERIC Detect a single / localized watermark (logo, text band).
 %
-% Integrates multi-scale top-hat evidence, horizontal line grouping, aspect ratio /
-% solidity morphology filtering, optional MSER cues, and optional search region hints.
+% 1. Evidence map T; search area = ROI, optionally restricted by the
+%    'search_box' hint in data/real/hints.json.
+% 2. Otsu threshold of T inside the search area.
+% 3. Group glyphs: closing with a horizontal line (length relative to image
+%    height) and a small disk, so a word / logo becomes one blob.
+% 4. Score blobs by mean evidence x edge density x text-likeness; reject blobs
+%    outside the area bounds. Keep the best blob and any blob scoring at
+%    least cfg.gen.keepFrac of it that lies within cfg.gen.clusterDist of it.
+% 5. Mask = above-threshold pixels inside the kept blobs.
 %
 % Inputs:
 %   P       - Preprocessed struct from preprocess.m
-%   cfg     - Configuration struct (cfg.gen, cfg.mask)
-%   info    - (Optional) classification info struct
-%   imgName - (Optional) image name to query hints.json for search_box
+%   cfg     - Configuration struct (cfg.gen)
+%   info    - (Optional) classification info (may carry T)
+%   imgName - (Optional) image base name for the hints lookup
 %
 % Output:
-%   D       - Detection struct with maskTight, maskDil, m, type, info
+%   D       - Detection struct (maskTight, maskDil, m, type, info)
 
-if nargin < 3 || isempty(info)
-    info = struct();
-end
-if nargin < 4
-    imgName = '';
-end
+if nargin < 3 || isempty(info), info = struct(); end
+if nargin < 4, imgName = ''; end
 
 [H, W] = size(P.gray);
 [T, E] = evidenceMap(P, cfg);
 
-% 1. Check for search box hint in hints.json
+% 1. Search area
 searchMask = P.valid;
-usedHint = false;
-hintsFile = fullfile('data', 'real', 'hints.json');
-
-if ~isempty(imgName) && exist(hintsFile, 'file')
-    try
-        hintsText = fileread(hintsFile);
-        hints = jsondecode(hintsText);
-        [~, baseName, ~] = fileparts(imgName);
-        if isfield(hints, baseName) && isfield(hints.(baseName), 'search_box')
-            sb = hints.(baseName).search_box; % [x, y, w, h]
-            x1 = max(1, round(sb(1)));
-            y1 = max(1, round(sb(2)));
-            x2 = min(W, round(sb(1) + sb(3) - 1));
-            y2 = min(H, round(sb(2) + sb(4) - 1));
-            
-            searchMask = false(H, W);
-            searchMask(y1:y2, x1:x2) = true;
-            searchMask = searchMask & P.valid;
-            usedHint = true;
-        end
-    catch ME
-        warning('detectGeneric:hintsError', 'Failed to read hints: %s', ME.message);
-    end
+info.usedHint = false;
+hint = loadHint(cfg, imgName);
+if isfield(hint, 'search_box')
+    sb = round(hint.search_box);
+    box = false(H, W);
+    box(max(1, sb(2)):min(H, sb(2) + sb(4) - 1), max(1, sb(1)):min(W, sb(1) + sb(3) - 1)) = true;
+    searchMask = searchMask & box;
+    info.usedHint = true;
+    fprintf('  [generic] search_box hint [%d %d %d %d]\n', sb);
 end
 
-% 2. Threshold evidence map
-Tsearch = T;
-Tsearch(~searchMask) = 0;
-
-nonzeroT = Tsearch(Tsearch > 0.05);
-if ~isempty(nonzeroT)
-    threshVal = max(0.12, 0.65 * graythresh(nonzeroT));
-else
-    threshVal = 0.2;
-end
-bw = (Tsearch >= threshVal) & searchMask;
-
-% 3. Text line grouping (horizontal structuring element)
-seLine = strel('line', 18, 0);
-bwLine = imclose(bw, seLine);
-
-% 4. Connected component analysis and ranking
-cc = bwconncomp(bwLine, 8);
-props = regionprops(cc, 'Area', 'BoundingBox', 'Solidity', 'PixelIdxList');
-
-minArea = cfg.gen.minArea;
-maxArea = cfg.gen.maxAreaFrac * (H * W);
-minSolidity = cfg.gen.minSolidity;
-
-keepIdx = [];
-scores = [];
-
-Ed = imgaussfilt(double(E), 4);
-if max(Ed(:)) > 0
-    Ed = Ed ./ max(Ed(:));
+% Location prior (no hint): single marks sit in a corner or a bottom band
+if ~info.usedHint
+    ym = round(cfg.gen.priorCornerFrac * H); xm = round(cfg.gen.priorCornerFrac * W);
+    prior = false(H, W);
+    prior([1:ym, H-ym+1:H], [1:xm, W-xm+1:W]) = true;
+    prior(round((1 - cfg.gen.priorBandFrac) * H):H, :) = true;
+    searchMask = searchMask & prior;
 end
 
+% 2. Threshold
+lvl = graythresh(T(searchMask));
+bw = T > lvl & searchMask;
+
+% 3. Glyph grouping
+lineLen = max(3, round(cfg.gen.groupLenFrac * H));
+grouped = imclose(bw, strel('line', lineLen, 0));
+grouped = imclose(grouped, strel('disk', cfg.gen.groupDiskR));
+
+% 4. Blob scoring
+Ed = imgaussfilt(double(E), cfg.gen.edgeSigma);
+Ed = Ed / max(max(Ed(:)), eps);
+cc = bwconncomp(grouped, 8);
+props = regionprops(cc, 'Area', 'BoundingBox', 'Solidity', 'Centroid', 'PixelIdxList');
+maxArea = cfg.gen.maxAreaFrac * nnz(searchMask);
+scores = zeros(numel(props), 1);
 for k = 1:numel(props)
-    a = props(k).Area;
-    sol = props(k).Solidity;
-    bb = props(k).BoundingBox;
-    aspectRatio = bb(3) / max(bb(4), 1);
-    
-    if a >= minArea && a <= maxArea && sol >= minSolidity
-        pix = props(k).PixelIdxList;
-        meanT = mean(T(pix));
-        meanEd = mean(Ed(pix));
-        
-        % Score by evidence, edge density, and text-like aspect ratio
-        score = (meanT * 0.6 + meanEd * 0.4) * (1 + 0.2 * min(aspectRatio, 5));
-        
-        keepIdx = [keepIdx; k]; %#ok<AGROW>
-        scores = [scores; score]; %#ok<AGROW>
+    if props(k).Area < cfg.gen.minArea || props(k).Area > maxArea || ...
+            props(k).Solidity < cfg.gen.minSolidity
+        continue;
     end
+    pix = props(k).PixelIdxList;
+    fill = nnz(bw(pix)) / numel(pix);           % strokes inside the blob
+    bb = props(k).BoundingBox;
+    aspect = min(bb(3) / max(bb(4), 1), cfg.gen.maxAspectBonus);
+    scores(k) = mean(T(pix)) * mean(Ed(pix)) * (1 + aspect / cfg.gen.maxAspectBonus) ...
+                * min(1, fill / cfg.gen.minFill) * sqrt(props(k).Area);
 end
 
 rawMask = false(H, W);
-if ~isempty(scores)
-    % Keep components above top score threshold
-    [sortedScores, sOrder] = sort(scores, 'descend');
-    topScore = sortedScores(1);
-    accepted = keepIdx(sOrder(sortedScores >= 0.4 * topScore));
-    
-    for k = 1:numel(accepted)
-        idx = accepted(k);
-        % Fill with the original fine-grained evidence within this component
-        bb = props(idx).BoundingBox;
-        x1 = max(1, floor(bb(1)));
-        y1 = max(1, floor(bb(2)));
-        x2 = min(W, ceil(bb(1) + bb(3) - 1));
-        y2 = min(H, ceil(bb(2) + bb(4) - 1));
-        
-        patchT = T(y1:y2, x1:x2);
-        patchBW = (patchT > (0.5 * threshVal));
-        rawMask(y1:y2, x1:x2) = rawMask(y1:y2, x1:x2) | patchBW;
-    end
-else
-    % Fallback: direct threshold on evidence within searchMask
-    rawMask = bw;
-end
-
-% 5. Optional MSER feature reinforcement
-if isfield(cfg, 'caps') && isfield(cfg.caps, 'hasMSER') && cfg.caps.hasMSER
-    try
-        mser = detectMSERFeatures(P.gray, 'ROI', [1, 1, W, H]);
-        % Reinforce regions overlapping MSER pixels
-        mserMask = false(H, W);
-        for p = 1:mser.Count
-            pt = round(mser.Location(p, :));
-            if pt(1) >= 1 && pt(1) <= W && pt(2) >= 1 && pt(2) <= H
-                mserMask(pt(2), pt(1)) = true;
-            end
+if any(scores > 0)
+    [top, ti] = max(scores);
+    c0 = props(ti).Centroid;
+    for k = find(scores >= cfg.gen.keepFrac * top)'
+        if hypot(props(k).Centroid(1) - c0(1), props(k).Centroid(2) - c0(2)) <= cfg.gen.clusterDist * max(H, W)
+            rawMask(props(k).PixelIdxList) = true;
         end
-        mserDil = imdilate(mserMask, strel('disk', 3));
-        rawMask = rawMask | (mserDil & (T > threshVal) & searchMask);
-    catch
-        % Continue without MSER if execution encounters issue
     end
+    rawMask = rawMask & bw;
+    fprintf('  [generic] kept %d px from %d candidate blobs\n', nnz(rawMask), nnz(scores > 0));
 end
-
-rawMask = rawMask & searchMask;
 
 info.detector = 'generic';
-info.usedHint = usedHint;
+info.threshold = lvl;
 D = refineMask(rawMask, P, cfg, 'single', info);
-
 end

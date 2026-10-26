@@ -31,13 +31,7 @@ P.I = I;
 P.gray = rgb2gray(I);
 
 % CIELAB
-if exist('rgb2lab', 'file') || exist('rgb2lab', 'builtin')
-    P.lab = rgb2lab(I);
-else
-    % Fallback if rgb2lab is missing
-    P.lab = zeros(size(I));
-    P.lab(:,:,1) = P.gray * 100;
-end
+P.lab = rgb2lab(I);
 
 % Valid content ROI excluding solid borders/frames
 P.valid = findROI(P.gray, cfg, imgName);

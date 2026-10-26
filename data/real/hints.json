@@ -1,15 +1,102 @@
 {
-  "_comment": "Optional hints for test images to define manual ROI overrides or search regions. Format: [x, y, width, height] in 1-based indexing.",
+  "_comment": "Optional per-image hints. roi=[x,y,w,h] overrides findROI. search_box=[x,y,w,h] restricts detectGeneric search. All 1-based pixel coords.",
   "w1_sample_tiled": {
-    "roi": [24, 24, 452, 233],
-    "description": "Inner photo region excluding white frame and drop shadow"
+    "roi": [
+      24,
+      24,
+      452,
+      233
+    ],
+    "description": "Inner photo region; exclude white drop-shadow frame ~23px each side"
   },
   "w3_proof_bold": {
-    "roi": [15, 15, 541, 320],
-    "description": "Inner photo region excluding dark border"
+    "description": "Dark border ~8px; PROOF text band at bottom ~60px. ROI excludes border.",
+    "roi": [
+      9,
+      9,
+      553,
+      332
+    ],
+    "search_box": [
+      9,
+      250,
+      553,
+      90
+    ]
   },
   "w5_zoner_single": {
-    "search_box": [450, 320, 275, 90],
-    "description": "Bottom-right quadrant containing Zoner Photo Studio X logo"
+    "search_box": [
+      430,
+      300,
+      303,
+      118
+    ],
+    "description": "Zoner Photo Studio X logo bottom-right; restrict search to bottom-right quadrant"
+  },
+  "wm1_india_currency": {
+    "description": "Currency note - no visible photo watermark overlay; Niteenk text bottom-right",
+    "search_box": [
+      600,
+      580,
+      424,
+      103
+    ]
+  },
+  "wm2_kingfisher_idb": {
+    "search_box": [
+      220,
+      120,
+      80,
+      48
+    ],
+    "description": "iDB logo bottom-right corner; small single instance"
+  },
+  "wm3_mountain_lake_alamy": {
+    "search_box": [
+      900,
+      300,
+      400,
+      473
+    ],
+    "description": "Alamy watermark center-right; restrict to right half"
+  },
+  "wm4_road_ends_hd": {
+    "search_box": [
+      520,
+      1,
+      114,
+      90
+    ],
+    "description": "HD badge top-right corner; small single instance"
+  },
+  "wm5_cliffs_jdoe": {
+    "description": "J. Doe Photography diagonal script center-left; circle logo top-right",
+    "search_box": [
+      100,
+      200,
+      700,
+      350
+    ]
+  },
+  "wm6_city_hdrshooter": {
+    "description": "HDRSHOOTER diagonal text across center; treat as single large mark",
+    "search_box": [
+      80,
+      100,
+      470,
+      265
+    ]
+  },
+  "wm7_luke_winter": {
+    "description": "LUKE COLLINS PHOTOGRAPHY tiled logos; same as w4_luke_logo"
+  },
+  "wm8_alpine_lake_zoner": {
+    "search_box": [
+      530,
+      310,
+      203,
+      108
+    ],
+    "description": "Zoner Photo Studio X logo bottom-right; same watermark as w5_zoner_single"
   }
 }

@@ -16,27 +16,17 @@ end
 [H, W] = size(imgGray);
 valid = true(H, W);
 
-% 1. Check for manual override hint in hints.json
-hintsFile = fullfile('data', 'real', 'hints.json');
-if ~isempty(imgName) && exist(hintsFile, 'file')
-    try
-        hintsText = fileread(hintsFile);
-        hints = jsondecode(hintsText);
-        [~, baseName, ~] = fileparts(imgName);
-        if isfield(hints, baseName) && isfield(hints.(baseName), 'roi')
-            roiBox = hints.(baseName).roi; % [x, y, width, height]
-            x1 = max(1, round(roiBox(1)));
-            y1 = max(1, round(roiBox(2)));
-            x2 = min(W, round(roiBox(1) + roiBox(3) - 1));
-            y2 = min(H, round(roiBox(2) + roiBox(4) - 1));
-            
-            valid = false(H, W);
-            valid(y1:y2, x1:x2) = true;
-            return;
-        end
-    catch ME
-        warning('findROI:hintsError', 'Failed to read hints.json: %s', ME.message);
-    end
+% 1. Manual override from data/real/hints.json
+hint = loadHint(cfg, imgName);
+if isfield(hint, 'roi')
+    roiBox = hint.roi; % [x, y, width, height]
+    x1 = max(1, round(roiBox(1)));
+    y1 = max(1, round(roiBox(2)));
+    x2 = min(W, round(roiBox(1) + roiBox(3) - 1));
+    y2 = min(H, round(roiBox(2) + roiBox(4) - 1));
+    valid = false(H, W);
+    valid(y1:y2, x1:x2) = true;
+    return;
 end
 
 % 2. Automatic frame detection

@@ -29,13 +29,7 @@ maskTight = bwareaopen(maskClosed, cfg.mask.minComp);
 
 % 3. Optional active contour refinement
 if isfield(cfg.mask, 'useActiveContour') && cfg.mask.useActiveContour && any(maskTight(:))
-    if exist('activecontour', 'file') || exist('activecontour', 'builtin')
-        try
-            maskTight = activecontour(P.gray, maskTight, 30, 'Chan-Vese');
-        catch
-            % Fall back to morphological mask if activecontour fails
-        end
-    end
+    maskTight = activecontour(P.gray, maskTight, 30, 'Chan-Vese');
 end
 
 maskTight = maskTight & P.valid;

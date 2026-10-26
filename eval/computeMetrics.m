@@ -87,15 +87,7 @@ if ~isempty(cleanImg) && ~isempty(restoredImg)
     end
     
     % SSIM
-    if isfield(cfg, 'caps') && isfield(cfg.caps, 'hasSSIM') && cfg.caps.hasSSIM && exist('ssim', 'file')
-        try
-            metrics.ssim_whole = ssim(restoredImg, cleanImg);
-        catch
-            metrics.ssim_whole = computeManualSSIM(restoredImg, cleanImg);
-        end
-    else
-        metrics.ssim_whole = computeManualSSIM(restoredImg, cleanImg);
-    end
+    metrics.ssim_whole = ssim(restoredImg, cleanImg);
 else
     metrics.psnr_whole = NaN;
     metrics.psnr_baseline = NaN;
@@ -116,7 +108,7 @@ else
 end
 
 % 4. No-reference Quality Metrics (NIQE / BRISQUE)
-if isfield(cfg, 'caps') && isfield(cfg.caps, 'hasNIQE') && cfg.caps.hasNIQE && exist('niqe', 'file')
+if cfg.caps.hasNIQE
     try
         metrics.niqe = niqe(restoredImg);
     catch
@@ -126,7 +118,7 @@ else
     metrics.niqe = NaN;
 end
 
-if isfield(cfg, 'caps') && isfield(cfg.caps, 'hasBRISQUE') && cfg.caps.hasBRISQUE && exist('brisque', 'file')
+if cfg.caps.hasBRISQUE
     try
         metrics.brisque = brisque(restoredImg);
     catch
@@ -136,25 +128,4 @@ else
     metrics.brisque = NaN;
 end
 
-end
-
-function score = computeManualSSIM(img1, img2)
-% Basic fallback structural similarity metric
-g1 = 0.2989 * img1(:,:,1) + 0.5870 * img1(:,:,2) + 0.1140 * img1(:,:,3);
-g2 = 0.2989 * img2(:,:,1) + 0.5870 * img2(:,:,2) + 0.1140 * img2(:,:,3);
-
-c1 = (0.01)^2;
-c2 = (0.03)^2;
-
-mu1 = mean(g1(:));
-mu2 = mean(g2(:));
-
-var1 = var(g1(:));
-var2 = var(g2(:));
-covar = mean((g1(:) - mu1) .* (g2(:) - mu2));
-
-num = (2 * mu1 * mu2 + c1) * (2 * covar + c2);
-den = (mu1^2 + mu2^2 + c1) * (var1 + var2 + c2);
-
-score = num / max(den, eps);
 end

@@ -31,11 +31,9 @@ addParameter(p, 'only', '', @(x) ischar(x) || isstring(x));
 parse(p, varargin{:});
 onlyFilter = char(p.Results.only);
 
+setupPaths();
 cfg = config();
 rng(cfg.seed);
-
-addpath(genpath('src'));
-addpath(genpath('eval'));
 
 if ~exist(cfg.paths.out, 'dir')
     mkdir(cfg.paths.out);
@@ -67,6 +65,7 @@ fprintf('=== Running Watermark Detection & Removal Pipeline ===\n');
 fprintf('Input folder: %s (%d images)\n', inputDir, numel(fileList));
 
 errorLogPath = fullfile(cfg.paths.out, 'errors.log');
+fclose(fopen(errorLogPath, 'w'));   % truncate: log only this run's errors
 numErrors = 0;
 
 for k = 1:numel(fileList)
@@ -110,7 +109,7 @@ for k = 1:numel(fileList)
         J_m2 = blendResult(P.I, J_m2_raw, D.maskDil, cfg);
         
         % 6. Removal: Method 3 (Alpha Inversion using M1 as initial clean guess)
-        [J_m3_raw, ainfo] = removeAlphaInvert(P.I, D, J_m1, cfg);
+        [J_m3_raw, ainfo] = removeAlphaInvert(P.I, D, J_m1_raw, cfg);
         J_m3 = blendResult(P.I, J_m3_raw, D.maskDil, cfg);
         
         % 7. Auto-selection rule (Section 8.5)
@@ -165,6 +164,8 @@ for k = 1:numel(fileList)
         infoStruct.alpha_initial = ainfo.a_init;
         infoStruct.alpha_reliable = ainfo.reliable;
         infoStruct.mask_pixels = sum(D.maskTight(:));
+        hint = loadHint(cfg, baseName);
+        infoStruct.hint_used = ~isempty(fieldnames(hint)) && (isfield(hint, 'roi') || isfield(hint, 'search_box'));
         infoStruct.image_size = size(P.I);
         
         if isfield(D.info, 'instanceCount')

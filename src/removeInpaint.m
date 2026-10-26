@@ -1,82 +1,68 @@
 function J = removeInpaint(I, maskDil, method, cfg)
-% REMOVEINPAINT Watermark removal via coherent, exemplar, or boundary inpainting.
+% REMOVEINPAINT Watermark removal by inpainting the dilated mask.
 %
 % Methods:
-%   'coherent'   - Inpaints using structural coherence (inpaintCoherent with regionfill fallback)
-%   'exemplar'   - Texture synthesis inpainting (inpaintExemplar with criminisiInpaint fallback)
-%   'regionfill' - Harmonic boundary PDE interpolation per channel
+%   'coherent'   - Method 1: coherence-transport inpainting (inpaintCoherent)
+%   'exemplar'   - Method 2: exemplar/patch inpainting (inpaintExemplar), run
+%                  per group of nearby holes on a cropped region for speed
+%   'regionfill' - Harmonic (Laplace) fill per colour channel
 %
 % Inputs:
-%   I       - 3D double RGB image in [0, 1]
-%   maskDil - 2D logical dilated watermark mask
+%   I       - RGB double image in [0, 1]
+%   maskDil - 2-D logical mask of pixels to replace
 %   method  - 'coherent' | 'exemplar' | 'regionfill'
-%   cfg     - Configuration struct (cfg.inp, cfg.caps)
+%   cfg     - Configuration struct (cfg.inp)
 %
 % Output:
-%   J       - Inpainted 3D double RGB image in [0, 1]
+%   J       - Inpainted RGB double image in [0, 1]
 
 if nargin < 3 || isempty(method)
     method = 'coherent';
 end
 
 maskDil = logical(maskDil);
+I = min(max(im2double(I), 0), 1);
 if ~any(maskDil(:))
     J = I;
     return;
 end
 
-% Ensure floating point [0, 1]
-if ~isfloat(I)
-    I = im2double(I);
-else
-    I = min(max(I, 0), 1);
-end
-
 switch lower(method)
     case 'coherent'
-        if isfield(cfg, 'caps') && isfield(cfg.caps, 'hasCoherent') && cfg.caps.hasCoherent && exist('inpaintCoherent', 'file')
-            try
-                J = inpaintCoherent(I, maskDil, ...
-                    'SmoothingFactor', cfg.inp.coherentSmooth, ...
-                    'Radius', cfg.inp.coherentRadius);
-            catch
-                % Fallback to regionfill if inpaintCoherent fails
-                J = I;
-                for c = 1:size(I, 3)
-                    J(:,:,c) = regionfill(I(:,:,c), maskDil);
-                end
-            end
-        else
-            % Coherent fallback: regionfill per color channel
-            J = I;
-            for c = 1:size(I, 3)
-                J(:,:,c) = regionfill(I(:,:,c), maskDil);
-            end
-        end
-        
+        J = inpaintCoherent(I, maskDil, ...
+            'SmoothingFactor', cfg.inp.coherentSmooth, ...
+            'Radius', cfg.inp.coherentRadius);
+
     case 'exemplar'
-        if isfield(cfg, 'caps') && isfield(cfg.caps, 'hasExemplar') && cfg.caps.hasExemplar && exist('inpaintExemplar', 'file')
-            try
-                J = inpaintExemplar(I, maskDil, 'PatchSize', cfg.inp.exemplarPatch);
-            catch
-                % Fallback to criminisiInpaint
-                J = criminisiInpaint(I, maskDil, cfg.inp.exemplarPatch);
-            end
-        else
-            % Exemplar fallback: Criminisi exemplar patch inpainter
-            J = criminisiInpaint(I, maskDil, cfg.inp.exemplarPatch);
-        end
-        
+        J = exemplarPerRegion(I, maskDil, cfg);
+
     case 'regionfill'
         J = I;
         for c = 1:size(I, 3)
-            J(:,:,c) = regionfill(I(:,:,c), maskDil);
+            J(:, :, c) = regionfill(I(:, :, c), maskDil);   % regionfill is 2-D only
         end
-        
+
     otherwise
         error('removeInpaint:unknownMethod', 'Unknown inpainting method: %s', method);
 end
 
 J = min(max(J, 0), 1);
+end
 
+function J = exemplarPerRegion(I, mask, cfg)
+% inpaintExemplar searches the whole image for every patch, so it is slow on
+% large images. Holes closer than one search margin are grouped and each group
+% is inpainted on a crop that extends cfg.inp.exemplarSearch px around it.
+[H, W, ~] = size(I);
+J = I;
+pad = cfg.inp.exemplarSearch;
+groups = bwconncomp(imdilate(mask, strel('square', 2 * cfg.inp.exemplarPatch(1) + 1)));
+for g = 1:groups.NumObjects
+    [gr, gc] = ind2sub([H, W], groups.PixelIdxList{g});
+    y1 = max(1, min(gr) - pad); y2 = min(H, max(gr) + pad);
+    x1 = max(1, min(gc) - pad); x2 = min(W, max(gc) + pad);
+    sub = mask(y1:y2, x1:x2);
+    J(y1:y2, x1:x2, :) = inpaintExemplar(J(y1:y2, x1:x2, :), sub, ...
+        'PatchSize', cfg.inp.exemplarPatch);
+end
 end
