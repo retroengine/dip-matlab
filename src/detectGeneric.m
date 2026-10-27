@@ -30,13 +30,28 @@ if nargin < 4, imgName = ''; end
 searchMask = P.valid;
 info.usedHint = false;
 hint = loadHint(cfg, imgName);
+userRegion = isfield(hint, 'mask') && isequal(size(hint.mask), [H W]);
+if userRegion
+    searchMask = searchMask & hint.mask;
+    info.usedHint = true;
+    fprintf('  [generic] using the region you drew (%d px)\n', nnz(searchMask));
+end
 if isfield(hint, 'search_box')
-    sb = round(hint.search_box);
+    boxes = round(reshape(hint.search_box, [], 4));   % one [x y w h] per row
     box = false(H, W);
-    box(max(1, sb(2)):min(H, sb(2) + sb(4) - 1), max(1, sb(1)):min(W, sb(1) + sb(3) - 1)) = true;
+    for b = 1:size(boxes, 1)
+        sb = boxes(b, :);
+        box(max(1, sb(2)):min(H, sb(2) + sb(4) - 1), max(1, sb(1)):min(W, sb(1) + sb(3) - 1)) = true;
+    end
     searchMask = searchMask & box;
     info.usedHint = true;
-    fprintf('  [generic] search_box hint [%d %d %d %d]\n', sb);
+    fprintf('  [generic] %d search_box hint(s)\n', size(boxes, 1));
+
+    % Inside a hint box also use deviation from the local background, which
+    % catches opaque / coloured / dark marks that the white-overlay cue misses.
+    Tdev = backgroundDeviation(P.I, cfg);
+    Tdev(~searchMask) = 0;
+    T = max(T, Tdev / max(max(Tdev(:)), eps));
 end
 
 % Location prior (no hint): single marks sit in a corner or a bottom band
@@ -93,4 +108,17 @@ end
 info.detector = 'generic';
 info.threshold = lvl;
 D = refineMask(rawMask, P, cfg, 'single', info);
+end
+
+function Td = backgroundDeviation(I, cfg)
+% Max over channels of |I - local median background|; the median runs on a
+% downscaled copy so large photos stay fast.
+[H, W, ~] = size(I);
+Td = zeros(H, W);
+for c = 1:3
+    small = imresize(I(:, :, c), cfg.gen.devScale);
+    bg = imresize(medfilt2(small, [cfg.gen.devWin cfg.gen.devWin], 'symmetric'), [H W]);
+    Td = max(Td, abs(I(:, :, c) - bg));
+end
+Td = imgaussfilt(Td, 1);
 end

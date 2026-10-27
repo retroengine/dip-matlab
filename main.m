@@ -2,6 +2,7 @@ function exitCode = main(inputDir, varargin)
 % MAIN Entry point for visible watermark detection and removal pipeline.
 %
 % Usage:
+%   main                      % default folder: images/
 %   main('data/real')
 %   main('data/real', 'only', 'w4_luke_logo')
 %
@@ -22,7 +23,7 @@ function exitCode = main(inputDir, varargin)
 %   exitCode - 0 if all images succeeded, 1 if any image threw an unhandled error.
 
 if nargin < 1 || isempty(inputDir)
-    inputDir = fullfile('data', 'real');
+    inputDir = fullfile(fileparts(mfilename('fullpath')), 'images');   % default: your own images first
 end
 
 % Parse optional parameters
@@ -88,7 +89,12 @@ for k = 1:numel(fileList)
         % 2. Classify
         [wmType, classInfo] = classifyWatermark(P, cfg);
         
-        % 3. Detect according to classified type
+        % 3. Detect according to classified type; a search_box hint always
+        %    selects the hinted single-mark detector
+        hintNow = loadHint(cfg, baseName);
+        if isfield(hintNow, 'search_box') || isfield(hintNow, 'mask')
+            wmType = 'single';
+        end
         switch wmType
             case 'periodic'
                 D = detectPeriodic(P, cfg, classInfo);
@@ -165,7 +171,7 @@ for k = 1:numel(fileList)
         infoStruct.alpha_reliable = ainfo.reliable;
         infoStruct.mask_pixels = sum(D.maskTight(:));
         hint = loadHint(cfg, baseName);
-        infoStruct.hint_used = ~isempty(fieldnames(hint)) && (isfield(hint, 'roi') || isfield(hint, 'search_box'));
+        infoStruct.hint_used = isfield(hint, 'roi') || isfield(hint, 'search_box') || isfield(hint, 'mask');
         infoStruct.image_size = size(P.I);
         
         if isfield(D.info, 'instanceCount')

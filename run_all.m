@@ -67,8 +67,7 @@ end
 %% ── STEP 4: REAL IMAGES ─────────────────────────────────────────────────
 fprintf('\n>>> STEP 4/5: Running Pipeline on all images in data/real/...\n');
 try
-    realInputDir = fullfile(baseDir, 'data', 'real');
-    code = main(realInputDir);
+    code = main(fullfile(baseDir, 'images')) + main(fullfile(baseDir, 'data', 'real'));
     if code == 0
         fprintf('  [OK] All real images processed. Artifacts saved in results/\n');
     else

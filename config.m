@@ -62,6 +62,8 @@ cfg.gen.maxAspectBonus = 6;     % aspect ratio (w/h) at which the text bonus sat
 cfg.gen.minFill     = 0.3;      % blobs with fewer stroke pixels than this are penalised
 cfg.gen.priorCornerFrac = 0.3;  % corner boxes (fraction of width/height) searched when no hint
 cfg.gen.priorBandFrac = 0.3;    % bottom band (fraction of height) searched when no hint
+cfg.gen.devScale    = 0.25;     % downscale for the background-deviation median filter
+cfg.gen.devWin      = 9;        % median window on the downscaled image (~36 px at full size)
 cfg.gen.keepFrac    = 0.5;      % keep blobs scoring >= this fraction of the best
 cfg.gen.clusterDist = 0.25;     % ... and within this fraction of the image size of it
 

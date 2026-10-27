@@ -26,6 +26,8 @@ The watermark model is `I = (1 - a)·J + a·W` (J = clean image, W = white, a = 
 MATLAB R2021a or newer (developed on R2026b) with the **Image Processing Toolbox**. Nothing else.
 
 ## Run it
+Your own images go in `images/` (the default). To mark where the watermark is, run `selectRegion('images/yourfile.png')`,
+draw a polygon or freehand circle around it, then run `main`.
 ```
 matlab -batch "run_all"                      % everything: preflight, synthetic data, benchmark, real images, tests
 matlab -batch "setupPaths; main(fullfile('data','real'))"                     % real images only
@@ -43,7 +45,7 @@ Outputs go to `results/` (git-ignored, regenerated): `results/<name>/{mask,overl
 | `tests/` | `matlab.unittest` tests (10) |
 | `data/real/` | the test photos and optional `hints.json` (never modified) |
 | `config.m` | every parameter in one place |
-| `report/` | full write-up, phase log, saved research notes |
+| `report/` | full write-up and phase log |
 | `AGENTS.md` | the original project spec |
 
 ## Test images

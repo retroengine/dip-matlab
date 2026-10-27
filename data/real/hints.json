@@ -98,5 +98,76 @@
       108
     ],
     "description": "Zoner Photo Studio X logo bottom-right; same watermark as w5_zoner_single"
+  },
+  "img-1": {
+    "search_box": [
+      450,
+      20,
+      200,
+      190
+    ],
+    "description": "opaque mark over smooth background"
+  },
+  "img-2": {
+    "search_box": [
+      [
+        70,
+        95,
+        330,
+        230
+      ],
+      [
+        70,
+        1500,
+        330,
+        330
+      ]
+    ],
+    "description": "opaque mark over smooth background"
+  },
+  "img-4": {
+    "search_box": [
+      20,
+      20,
+      200,
+      160
+    ],
+    "description": "opaque mark over smooth background"
+  },
+  "img-5": {
+    "search_box": [
+      25,
+      60,
+      290,
+      100
+    ],
+    "description": "opaque mark over smooth background"
+  },
+  "img-6": {
+    "search_box": [
+      75,
+      60,
+      880,
+      190
+    ],
+    "description": "opaque mark over smooth background"
+  },
+  "img-7": {
+    "search_box": [
+      100,
+      50,
+      560,
+      150
+    ],
+    "description": "opaque mark over smooth background"
+  },
+  "img-8": {
+    "search_box": [
+      775,
+      325,
+      800,
+      550
+    ],
+    "description": "opaque mark over smooth background"
   }
 }
